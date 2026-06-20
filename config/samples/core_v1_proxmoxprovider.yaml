@@ -1,0 +1,9 @@
+apiVersion: core.xenonite.io/v1
+kind: ProxmoxProvider
+metadata:
+  labels:
+    app.kubernetes.io/name: xenonite
+    app.kubernetes.io/managed-by: kustomize
+  name: proxmoxprovider-sample
+spec:
+  # TODO(user): Add fields here
