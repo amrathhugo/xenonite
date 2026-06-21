@@ -178,11 +178,26 @@ func main() {
 		os.Exit(1)
 	}
 
+	// systemNamespace is where cluster-global Secrets (bootstrap join token) live.
+	// Populated from the downward API (POD_NAMESPACE); falls back for local runs.
+	systemNamespace := os.Getenv("POD_NAMESPACE")
+	if systemNamespace == "" {
+		systemNamespace = "xenonite-system"
+	}
+
 	if err := (&controller.XenonNodeClaimReconciler{
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		SystemNamespace: systemNamespace,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "Failed to create controller", "controller", "xenonnodeclaim")
+		os.Exit(1)
+	}
+	if err := (&controller.ProvisionerReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "Failed to create controller", "controller", "xenonnodeclaim")
+		setupLog.Error(err, "Failed to create controller", "controller", "provisioner")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

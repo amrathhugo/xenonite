@@ -22,6 +22,16 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+// XenonNodeClaimTemplateSpec is the node shape stamped into each XenonNodeClaim.
+type XenonNodeClaimTemplateSpec struct {
+	// +optional
+	// +listType=atomic
+	Requirements []corev1.NodeSelectorRequirement `json:"requirements,omitempty"`
+
+	// +optional
+	Resources corev1.ResourceList `json:"resources,omitempty"`
+}
+
 // XenonNodeClaimTemplate is the template used to create XenonNodeClaims.
 type XenonNodeClaimTemplate struct {
 	// +optional
@@ -31,11 +41,14 @@ type XenonNodeClaimTemplate struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 
 	// +required
-	Spec XenonNodeClaimSpec `json:"spec"`
+	Spec XenonNodeClaimTemplateSpec `json:"spec"`
 }
 
 // XenonNodePoolSpec defines the desired state of XenonNodePool
 type XenonNodePoolSpec struct {
+	// +required
+	ProviderRef corev1.TypedLocalObjectReference `json:"providerRef"`
+
 	// +required
 	Template XenonNodeClaimTemplate `json:"template"`
 
@@ -61,6 +74,7 @@ type XenonNodePoolStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Cluster
 
 // XenonNodePool is the Schema for the xenonnodepools API
 type XenonNodePool struct {

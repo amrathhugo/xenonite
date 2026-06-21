@@ -6,12 +6,13 @@ cliVersion: 4.15.0
 domain: xenonite.io
 layout:
 - go.kubebuilder.io/v4
+plugins:
+  helm.kubebuilder.io/v1-alpha: {}
 projectName: xenonite
 repo: github.com/amrathhugo/xenonite
 resources:
 - api:
     crdVersion: v1
-    namespaced: true
   controller: true
   domain: xenonite.io
   group: core
@@ -20,7 +21,6 @@ resources:
   version: v1
 - api:
     crdVersion: v1
-    namespaced: true
   domain: xenonite.io
   group: core
   kind: XenonNodePool
@@ -28,7 +28,6 @@ resources:
   version: v1
 - api:
     crdVersion: v1
-    namespaced: true
   domain: xenonite.io
   group: core
   kind: ProxmoxProvider

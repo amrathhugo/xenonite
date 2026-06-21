@@ -1,23 +1,29 @@
+{{- if .Values.crd.enable }}
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
   annotations:
+    {{- if .Values.crd.keep }}
+    "helm.sh/resource-policy": keep
+    {{- end }}
     controller-gen.kubebuilder.io/version: v0.21.0
-  name: proxmoxproviders.core.xenonite.io
+  name: xenonnodeclaims.core.xenonite.io
 spec:
   group: core.xenonite.io
   names:
-    kind: ProxmoxProvider
-    listKind: ProxmoxProviderList
-    plural: proxmoxproviders
-    singular: proxmoxprovider
+    kind: XenonNodeClaim
+    listKind: XenonNodeClaimList
+    plural: xenonnodeclaims
+    singular: xenonnodeclaim
   scope: Cluster
   versions:
   - name: v1
     schema:
       openAPIV3Schema:
-        description: ProxmoxProvider is the Schema for the proxmoxproviders API
+        description: XenonNodeClaim is the Schema for the xenonnodeclaims API
         properties:
           apiVersion:
             description: |-
@@ -37,100 +43,88 @@ spec:
           metadata:
             type: object
           spec:
-            description: ProxmoxProviderSpec defines the desired state of ProxmoxProvider
+            description: XenonNodeClaimSpec defines the desired state of XenonNodeClaim
             properties:
-              bootstrap:
-                description: BootstrapConfig carries the cluster join parameters for
-                  new nodes.
+              nodePoolRef:
+                description: |-
+                  LocalObjectReference contains enough information to let you locate the
+                  referenced object inside the same namespace.
                 properties:
-                  server:
-                    description: Server is the cluster URL passed to the agent, e.g.
-                      https://10.0.0.1:6443.
-                    type: string
-                  tokenSecretRef:
-                    description: TokenSecretRef sources the join token; injected into
-                      cloud-init as {{ .Token }}.
-                    properties:
-                      key:
-                        type: string
-                      name:
-                        type: string
-                    required:
-                    - key
-                    - name
-                    type: object
-                required:
-                - server
-                - tokenSecretRef
-                type: object
-              cloudInit:
-                description: CloudInitConfig describes the cloud-init user-data injected
-                  into cloned VMs.
-                properties:
-                  device:
-                    default: ide2
-                    type: string
-                  storage:
-                    type: string
-                  userData:
+                  name:
+                    default: ""
                     description: |-
-                      UserData is a Go text/template rendered per node. Available fields:
-                      {{ .NodeName }} {{ .Server }} {{ .Token }}.
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
                     type: string
-                required:
-                - userData
                 type: object
-              endpoint:
-                type: string
-              insecure:
-                type: boolean
-              networkBridge:
-                type: string
-              nodes:
+                x-kubernetes-map-type: atomic
+              requirements:
                 items:
-                  type: string
-                minItems: 1
+                  description: |-
+                    A node selector requirement is a selector that contains values, a key, and an operator
+                    that relates the key and values.
+                  properties:
+                    key:
+                      description: The label key that the selector applies to.
+                      type: string
+                    operator:
+                      description: |-
+                        Represents a key's relationship to a set of values.
+                        Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+                      type: string
+                    values:
+                      description: |-
+                        An array of string values. If the operator is In or NotIn,
+                        the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                        the values array must be empty. If the operator is Gt or Lt, the values
+                        array must have a single element, which will be interpreted as an integer.
+                        This array is replaced during a strategic merge patch.
+                      items:
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: atomic
+                  required:
+                  - key
+                  - operator
+                  type: object
                 type: array
-              password:
-                type: string
-              pool:
-                type: string
-              sourceTemplate:
-                description: TemplateSource identifies the Proxmox VM template to
-                  clone from.
-                properties:
-                  node:
-                    type: string
-                  vmid:
-                    minimum: 100
-                    type: integer
-                required:
-                - node
-                - vmid
+                x-kubernetes-list-type: atomic
+              resources:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+                description: ResourceList is a set of (resource name, quantity) pairs.
                 type: object
-              storage:
-                type: string
-              tags:
-                items:
-                  type: string
-                type: array
-              username:
-                description: Username is the full PVE login including realm, e.g.
-                  "root@pam".
-                type: string
             required:
-            - bootstrap
-            - cloudInit
-            - endpoint
-            - nodes
-            - password
-            - sourceTemplate
-            - storage
-            - username
+            - nodePoolRef
             type: object
           status:
-            description: ProxmoxProviderStatus defines the observed state of ProxmoxProvider.
+            description: XenonNodeClaimStatus defines the observed state of XenonNodeClaim.
             properties:
+              allocatable:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+                description: ResourceList is a set of (resource name, quantity) pairs.
+                type: object
+              capacity:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+                description: ResourceList is a set of (resource name, quantity) pairs.
+                type: object
               conditions:
                 items:
                   description: Condition contains details for one aspect of the current
@@ -190,6 +184,10 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              nodeName:
+                type: string
+              providerID:
+                type: string
             type: object
         required:
         - spec
@@ -198,3 +196,4 @@ spec:
     storage: true
     subresources:
       status: {}
+{{- end -}}

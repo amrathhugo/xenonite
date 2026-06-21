@@ -22,24 +22,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-// NodeClassReference points to a provider config such as ProxmoxProvider.
-type NodeClassReference struct {
-	// +required
-	Name string `json:"name"`
-
-	// +optional
-	// +kubebuilder:default=ProxmoxProvider
-	Kind string `json:"kind,omitempty"`
-
-	// +optional
-	// +kubebuilder:default=core.xenonite.io
-	Group string `json:"group,omitempty"`
-}
-
 // XenonNodeClaimSpec defines the desired state of XenonNodeClaim
 type XenonNodeClaimSpec struct {
 	// +required
-	NodeClassRef NodeClassReference `json:"nodeClassRef"`
+	NodePoolRef corev1.LocalObjectReference `json:"nodePoolRef"`
 
 	// +optional
 	// +listType=atomic
@@ -71,6 +57,7 @@ type XenonNodeClaimStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Cluster
 
 // XenonNodeClaim is the Schema for the xenonnodeclaims API
 type XenonNodeClaim struct {

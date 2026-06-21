@@ -12,7 +12,7 @@ spec:
     listKind: XenonNodeClaimList
     plural: xenonnodeclaims
     singular: xenonnodeclaim
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1
     schema:
@@ -39,21 +39,22 @@ spec:
           spec:
             description: XenonNodeClaimSpec defines the desired state of XenonNodeClaim
             properties:
-              nodeClassRef:
-                description: NodeClassReference points to a provider config such as
-                  ProxmoxProvider.
+              nodePoolRef:
+                description: |-
+                  LocalObjectReference contains enough information to let you locate the
+                  referenced object inside the same namespace.
                 properties:
-                  group:
-                    default: core.xenonite.io
-                    type: string
-                  kind:
-                    default: ProxmoxProvider
-                    type: string
                   name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
                     type: string
-                required:
-                - name
                 type: object
+                x-kubernetes-map-type: atomic
               requirements:
                 items:
                   description: |-
@@ -95,7 +96,7 @@ spec:
                 description: ResourceList is a set of (resource name, quantity) pairs.
                 type: object
             required:
-            - nodeClassRef
+            - nodePoolRef
             type: object
           status:
             description: XenonNodeClaimStatus defines the observed state of XenonNodeClaim.
