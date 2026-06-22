@@ -34,6 +34,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/luthermonson/go-proxmox"
+
 	xv1 "github.com/amrathhugo/xenonite/api/v1"
 	"github.com/amrathhugo/xenonite/internal/provider"
 	proxmoxprovider "github.com/amrathhugo/xenonite/internal/provider/proxmox"
@@ -52,7 +54,7 @@ type XenonNodeClaimReconciler struct {
 
 	// NewProvider builds a Provider for a resolved ProxmoxProvider. Injectable so
 	// tests can supply a fake. Defaults to the proxmox implementation.
-	NewProvider func(spec xv1.ProxmoxProviderSpec) provider.Provider
+	NewProvider func(spec xv1.ProxmoxProviderSpec, creds *proxmox.Credentials) provider.Provider
 
 	// SystemNamespace is the operator's namespace, where cluster-global Secrets
 	// (e.g. the bootstrap join token) live. Set from POD_NAMESPACE at startup.
@@ -120,11 +122,12 @@ func (r *XenonNodeClaimReconciler) reconcileCreate(
 		return ctrl.Result{}, err
 	}
 
-	cores, memMB := requestedSize(claim)
+	cores, memMB, diskGB := requestedSize(claim)
 	providerID, createErr := prov.Create(ctx, provider.CreateRequest{
 		Name:              claim.Name,
 		Cores:             cores,
 		MemoryMB:          memMB,
+		DiskGB:            diskGB,
 		CloudInitUserData: userData,
 	})
 
@@ -230,8 +233,9 @@ func (r *XenonNodeClaimReconciler) removeFinalizer(ctx context.Context, claim *x
 	return ctrl.Result{}, nil
 }
 
-// resolveProvider walks claim -> XenonNodePool -> ProxmoxProvider -> Secret and
-// returns a ready-to-use Provider plus the provider spec (needed for cloud-init).
+// resolveProvider walks claim -> XenonNodePool -> ProxmoxProvider and returns a
+// ready-to-use Provider plus the provider spec (needed for cloud-init).
+// Credentials are read inline from the ProxmoxProvider spec.
 func (r *XenonNodeClaimReconciler) resolveProvider(
 	ctx context.Context, claim *xv1.XenonNodeClaim,
 ) (provider.Provider, *xv1.ProxmoxProviderSpec, error) {
@@ -249,11 +253,26 @@ func (r *XenonNodeClaimReconciler) resolveProvider(
 		return nil, nil, fmt.Errorf("get proxmoxprovider %q: %w", ref.Name, err)
 	}
 
+	creds := proxmoxCredentials(pp.Spec.Credentials)
+
 	factory := r.NewProvider
 	if factory == nil {
-		factory = func(s xv1.ProxmoxProviderSpec) provider.Provider { return proxmoxprovider.New(s) }
+		factory = func(s xv1.ProxmoxProviderSpec, c *proxmox.Credentials) provider.Provider {
+			return proxmoxprovider.New(s, c)
+		}
 	}
-	return factory(pp.Spec), &pp.Spec, nil
+	return factory(pp.Spec, creds), &pp.Spec, nil
+}
+
+// proxmoxCredentials builds the go-proxmox credentials from the inline spec
+// fields. Credentials live directly on the ProxmoxProvider CR, so no Secret
+// lookup is required.
+func proxmoxCredentials(c xv1.ProxmoxCredentials) *proxmox.Credentials {
+	return &proxmox.Credentials{
+		Username: c.Username,
+		Password: c.Password,
+		Realm:    c.Realm,
+	}
 }
 
 // renderCloudInit fills the provider's user-data template with this node's
@@ -322,14 +341,17 @@ func (r *XenonNodeClaimReconciler) setCondition(claim *xv1.XenonNodeClaim, condT
 	})
 }
 
-func requestedSize(claim *xv1.XenonNodeClaim) (cores, memMB int) {
+func requestedSize(claim *xv1.XenonNodeClaim) (cores, memMB, diskGB int) {
 	if cpu, ok := claim.Spec.Resources[corev1.ResourceCPU]; ok {
 		cores = int(cpu.Value())
 	}
 	if mem, ok := claim.Spec.Resources[corev1.ResourceMemory]; ok {
 		memMB = int(mem.Value() / (1024 * 1024))
 	}
-	return cores, memMB
+	if disk, ok := claim.Spec.Resources[corev1.ResourceStorage]; ok {
+		diskGB = int(disk.Value() / (1024 * 1024 * 1024))
+	}
+	return cores, memMB, diskGB
 }
 
 func isNodeReady(node *corev1.Node) bool {

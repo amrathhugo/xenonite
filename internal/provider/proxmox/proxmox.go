@@ -147,6 +147,9 @@ func (p *Provider) configure(ctx context.Context, vm *proxmox.VirtualMachine, re
 	if req.MemoryMB > 0 {
 		opts = append(opts, proxmox.VirtualMachineOption{Name: "memory", Value: req.MemoryMB})
 	}
+	if req.DiskGB > 0 {
+		opts = append(opts, proxmox.VirtualMachineOption{Name: "disk", Value: req.DiskGB})
+	}
 	if len(p.spec.Tags) > 0 {
 		opts = append(opts, proxmox.VirtualMachineOption{Name: "tags", Value: strings.Join(p.spec.Tags, ";")})
 	}

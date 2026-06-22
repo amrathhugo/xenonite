@@ -17,10 +17,27 @@ limitations under the License.
 package v1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
+
+// ProxmoxCredentials holds the Proxmox API credentials inline on the CR. These
+// are cluster-global config (not per-tenant secrets), so they live directly on
+// the spec rather than behind a Secret reference.
+type ProxmoxCredentials struct {
+	// Username is the Proxmox user, e.g. "root" (the realm is supplied separately).
+	// +required
+	Username string `json:"username"`
+
+	// Password authenticates the user against the given realm.
+	// +required
+	Password string `json:"password"`
+
+	// Realm is the Proxmox authentication realm, e.g. "pam" or "pve".
+	// +optional
+	// +kubebuilder:default=pam
+	Realm string `json:"realm,omitempty"`
+}
 
 // TemplateSource identifies the Proxmox VM template to clone from.
 type TemplateSource struct {
@@ -77,7 +94,7 @@ type ProxmoxProviderSpec struct {
 	Insecure bool `json:"insecure,omitempty"`
 
 	// +required
-	CredentialsSecretRef corev1.SecretReference `json:"credentialsSecretRef"`
+	Credentials ProxmoxCredentials `json:"credentials"`
 
 	// +required
 	// +kubebuilder:validation:MinItems=1
